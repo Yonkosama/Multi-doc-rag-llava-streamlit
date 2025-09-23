@@ -2,6 +2,7 @@ from pyexpat import model
 import streamlit as st
 from dotenv import load_dotenv
 import os
+import requests
 from unstructured.partition.pdf import partition_pdf
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
@@ -216,47 +217,57 @@ def main():
 
 
         st.subheader("Your Documents:")
-        files = st.file_uploader("Upload your pdf files and start chatting!",
-                                            type=["pdf"], 
-                                            accept_multiple_files=True
-                                            )
-        button = st.button("Process")
-        if button:
+        files = st.file_uploader(
+            "Upload your pdf files and start chatting!", type=["pdf"], accept_multiple_files=True
+        )
+        ingest = st.button("Ingest PDFs (via API)")
+        if ingest:
             if files:
-                st.session_state["uploaded_files"] = files
-
-                # Create directory if it doesn't exist
                 save_dir = "uploaded_files"
                 os.makedirs(save_dir, exist_ok=True)
-
+                files_param = []
                 for file in files:
-                    # Construct full file path
                     file_path = os.path.join(save_dir, file.name)
                     with open(file_path, "wb") as f:
                         f.write(file.getbuffer())
-                    texts, tables, images_b64 = process_file_into_texts_tables_imagesb64(file_path)
-                    text_summaries, table_summaries, image_summaries = generate_summaries(texts, tables, images_b64, 
-                                                                                          summarize_texts=True, summarize_tables=True, summarize_images=True, 
-                                                                                          model=st.session_state.model)
-                
-                    st.success("Files uploaded successfully!")
-                    st.write(texts[0][:100],"/n", text_summaries[0])
-                    st.write(tables[0][:100],"/n", table_summaries[0])
-                    st.write(images_b64[0][:100],"/n", image_summaries[0])
+                    files_param.append(("files", (file.name, open(file_path, "rb"), "application/pdf")))
 
+                try:
+                    api_url = os.environ.get("API_URL", "http://localhost:8000")
+                    resp = requests.post(f"{api_url}/ingest_pdf", files=files_param, timeout=120)
+                    if resp.ok:
+                        data = resp.json()
+                        st.success(
+                            f"Ingested: {data.get('files')} | texts={data.get('text_count')} tables={data.get('table_count')} images={data.get('image_count')}"
+                        )
+                    else:
+                        st.error(f"Ingest failed: {resp.status_code} {resp.text}")
+                except Exception as e:
+                    st.error(f"Error calling API: {e}")
             else:
                 st.error("Please upload at least one pdf file.")
     
     st.session_state.text_input = st.text_input("Ask a query about your pdf files", placeholder="Type your query here...", 
                     key="input"
                     )
-    submit = st.button("Submit")
-    if submit:
-        response = st.session_state.Conversation_chain_with_memory.invoke(
-                f"{st.session_state.text_input}",
-                config={"configurable": {"session_id": "1"}},
-            )  # session_id determines thread
-        st.write(response.content)
+    submit = st.button("Ask (Multimodal RAG via API)")
+    if submit and st.session_state.text_input:
+        try:
+            api_url = os.environ.get("API_URL", "http://localhost:8000")
+            resp = requests.post(
+                f"{api_url}/query",
+                json={"question": st.session_state.text_input, "top_k": 6},
+                timeout=120,
+            )
+            if resp.ok:
+                data = resp.json()
+                st.write(data.get("answer"))
+                with st.expander("References"):
+                    st.json(data.get("references"))
+            else:
+                st.error(f"Query failed: {resp.status_code} {resp.text}")
+        except Exception as e:
+            st.error(f"Error calling API: {e}")
   
     if st.button("Reload"):
         st.rerun()
