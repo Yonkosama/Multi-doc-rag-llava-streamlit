@@ -1,20 +1,21 @@
-from pyexpat import model
-from tkinter import Place
+# NOTE: Commenting unused imports to avoid unnecessary dependencies/errors during runtime
+# from pyexpat import model
+# from tkinter import Place
 import streamlit as st
 from dotenv import load_dotenv
 import os
-from sympy import im
+# from sympy import im
 from unstructured.partition.pdf import partition_pdf
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import PromptTemplate
-from langchain_core.runnables import RunnableLambda
+# from langchain_google_genai import ChatGoogleGenerativeAI
+# from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+# from langchain_core.output_parsers import StrOutputParser
+# from langchain_core.prompts import PromptTemplate
+# from langchain_core.runnables import RunnableLambda
 from langchain_ollama.chat_models import ChatOllama
 from langchain.memory import ConversationBufferWindowMemory
 from langchain_core.chat_history import InMemoryChatMessageHistory
-from langchain_core.runnables.history import RunnableWithMessageHistory
-from base64 import b64encode
+# from langchain_core.runnables.history import RunnableWithMessageHistory
+# from base64 import b64encode
 import base64
 from vectorDB import add_to_vectorstore, retriever
 from langchain.chains import ConversationalRetrievalChain
@@ -32,22 +33,29 @@ def process_file_into_texts_tables_imagesb64(file_path, file_name):
 
     #using unstructured to extract text, tables and images in base64 format
     # Reference: https://docs.unstructured.io/open-source/core-functionality/chunking
+    # NOTE: Tuned chunking parameters for better retrieval recall.
+    # Old configuration kept for reference:
+    # chunks = partition_pdf(
+    # filename=file_path,
+    # infer_table_structure=True,
+    # strategy="hi_res",
+    # extract_image_block_types=["Image"],
+    # extract_image_block_to_payload=True,
+    # chunking_strategy="by_title",
+    # max_characters=10000,
+    # combine_text_under_n_chars=2000,
+    # new_after_n_chars=6000,
+    # )
     chunks = partition_pdf(
     filename=file_path,
-    infer_table_structure=True,            # extract tables
-    strategy="hi_res",                     # mandatory to infer tables
-    
-    extract_image_block_types=["Image"],   # Add 'Table' to list to extract image of tables
-    # image_output_dir_path=output_path,   # if None, images and tables will saved in base64
-
-    extract_image_block_to_payload=True,   # if true, will extract base64 for API usage
-
-    chunking_strategy="by_title",          # or 'basic'
-    max_characters=10000,                  # defaults to 500
-    combine_text_under_n_chars=2000,       # defaults to 0
-    new_after_n_chars=6000,
-
-    # extract_images_in_pdf=True,          # deprecated
+    infer_table_structure=True,
+    strategy="hi_res",
+    extract_image_block_types=["Image"],
+    extract_image_block_to_payload=True,
+    chunking_strategy="by_title",
+    max_characters=1200,
+    combine_text_under_n_chars=200,
+    new_after_n_chars=900,
     )
     #parsing individual chunks into text, tables, images in base64 format
     tables = []
@@ -228,7 +236,11 @@ def main():
         if initialize_model and st.session_state.llm_model_name:     
             
             if st.session_state.llm_model_name == "llava:latest":
+                # Old behavior: only set the model in session state
+                # st.session_state.model = load_model("llava:latest")
+                # New behavior: also propagate selection to env var so downstream modules use the same model
                 st.session_state.model = load_model("llava:latest")
+                os.environ["OLLAMA_MODEL_NAME"] = st.session_state.llm_model_name
                 st.success(f"Model {st.session_state.llm_model_name} initialized successfully!")
             else:
                 st.success(f"Currently we do not support any other model because of the api costing factors. Please select llava:latest model.")
@@ -256,7 +268,10 @@ def main():
                     with open(file_path, "wb") as f:
                         f.write(file.getbuffer())
                     texts, tables, images_b64 = process_file_into_texts_tables_imagesb64(file_path,file.name)
+                    # Basic instrumentation to understand modality coverage for this file
+                    st.caption(f"Extracted texts: {len(texts)}, tables: {len(tables)}, images: {len(images_b64)}")
                     image_summaries = generate_image_summaries(file_path)
+                    st.caption(f"Generated image summaries: {len(image_summaries)}")
                     add_to_vectorstore(texts, tables, images_b64,image_summaries)
                     st.success(f"{file.name} processed successfully!")
 
