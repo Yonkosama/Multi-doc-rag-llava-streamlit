@@ -8,9 +8,12 @@ dependencies = [
     "chromadb>=1.1.0",
     "dotenv>=0.9.9",
     "langchain>=0.3.27",
+    "langchain-community>=0.3.30",
+    "langchain-core>=0.3.76",
     "langchain-google-genai>=2.1.12",
     "langchain-ollama>=0.3.8",
     "langchain-openai>=0.3.33",
+    "sentence-transformers>=5.1.1",
     "streamlit>=1.49.1",
     "unstructured[pdf]>=0.18.14",
 ]
