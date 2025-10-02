@@ -1,23 +1,12 @@
-from pyexpat import model
-from tkinter import Place
 import streamlit as st
 from dotenv import load_dotenv
 import os
-from sympy import im
 from unstructured.partition.pdf import partition_pdf
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import PromptTemplate
-from langchain_core.runnables import RunnableLambda
 from langchain_ollama.chat_models import ChatOllama
 from langchain.memory import ConversationBufferWindowMemory
 from langchain_core.chat_history import InMemoryChatMessageHistory
-from langchain_core.runnables.history import RunnableWithMessageHistory
-from base64 import b64encode
 import base64
 from vectorDB import add_to_vectorstore, retriever
-from langchain.chains import ConversationalRetrievalChain
 
 
 def process_file_into_texts_tables_imagesb64(file_path, file_name):

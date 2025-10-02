@@ -23,31 +23,49 @@ retriever = MultiVectorRetriever(
 )
 
 
-def add_to_vectorstore(texts, tables, images,image_summaries):
-    """Add texts, tables, and images to the vectorstore with their summaries."""
+def add_to_vectorstore(texts, tables, images, image_summaries):
+    """Add texts, tables, and images to the vectorstore and parent docstore.
+
+    - Child documents go to the vector store (what gets embedded/searched)
+    - Full parent documents (with metadata) go to the docstore (what gets returned)
+    """
     # Add text documents
     if texts:
-        doc_ids = [str(uuid.uuid4()) for _ in texts]
-        texts_vectore_docs = [
-            Document(page_content=text, metadata={id_key: doc_ids[i] , "type": "text"}) for i, text in enumerate(texts)
+        text_ids = [str(uuid.uuid4()) for _ in texts]
+        text_child_docs = [
+            Document(page_content=text, metadata={id_key: text_ids[i], "type": "text"})
+            for i, text in enumerate(texts)
         ]
-        retriever.vectorstore.add_documents(texts_vectore_docs)
-        retriever.docstore.mset(list(zip(doc_ids, texts)))
+        retriever.vectorstore.add_documents(text_child_docs)
+        text_parent_docs = [
+            Document(page_content=text, metadata={"type": "text"}) for text in texts
+        ]
+        retriever.docstore.mset(list(zip(text_ids, text_parent_docs)))
 
     # Add tables
     if tables:
         table_ids = [str(uuid.uuid4()) for _ in tables]
-        table_vectore_docs = [
-            Document(page_content=summary, metadata={id_key: table_ids[i], "type" : "table"}) for i, summary in enumerate(tables)
+        table_child_docs = [
+            Document(page_content=table_html, metadata={id_key: table_ids[i], "type": "table"})
+            for i, table_html in enumerate(tables)
         ]
-        retriever.vectorstore.add_documents(table_vectore_docs)
-        retriever.docstore.mset(list(zip(table_ids, tables)))
+        retriever.vectorstore.add_documents(table_child_docs)
+        table_parent_docs = [
+            Document(page_content=table_html, metadata={"type": "table"}) for table_html in tables
+        ]
+        retriever.docstore.mset(list(zip(table_ids, table_parent_docs)))
 
-    # Add image summaries
-    if images:
-        img_ids = [str(uuid.uuid4()) for _ in images]
-        summary_img = [
-            Document(page_content=summary, metadata={id_key: img_ids[i], "type": "image"}) for i, summary in enumerate(image_summaries)
+    # Add image summaries and raw image payloads
+    if images and image_summaries:
+        count = min(len(images), len(image_summaries))
+        img_ids = [str(uuid.uuid4()) for _ in range(count)]
+        image_child_docs = [
+            Document(page_content=image_summaries[i], metadata={id_key: img_ids[i], "type": "image"})
+            for i in range(count)
         ]
-        retriever.vectorstore.add_documents(summary_img)
-        retriever.docstore.mset(list(zip(img_ids, images)))
+        retriever.vectorstore.add_documents(image_child_docs)
+        image_parent_docs = [
+            Document(page_content=images[i], metadata={"type": "image"})
+            for i in range(count)
+        ]
+        retriever.docstore.mset(list(zip(img_ids, image_parent_docs)))
