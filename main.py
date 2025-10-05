@@ -1,6 +1,7 @@
 import streamlit as st
 from dotenv import load_dotenv
 import os
+from sympy import im
 from unstructured.partition.pdf import partition_pdf
 from langchain_ollama.chat_models import ChatOllama
 from langchain.memory import ConversationBufferWindowMemory

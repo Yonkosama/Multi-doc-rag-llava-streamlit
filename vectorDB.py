@@ -7,7 +7,6 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.retrievers.multi_vector import MultiVectorRetriever
 import os
 
-# The vectorstore to use to index the child chunks
 
 # This i used to do earlier but this does not persist.
 #vectorstore = Chroma(collection_name="multi_modal_rag", embedding_function=HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2"))
